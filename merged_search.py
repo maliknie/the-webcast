@@ -50,33 +50,51 @@ def _extract_paragraphs_from_html(html: str, min_paragraph_len: int):
         return []
     return [p.strip() for p in extracted.split("\n") if p.strip() and len(p.strip()) >= min_paragraph_len]
 
-def gather_paragraphs(query: str,
-                      max_results: int = 8,
-                      min_paragraph_len: int = 200,
-                      timeout: float = 12.0,
-                      user_agent: str = DEFAULT_UA) -> list[str]:
+def gather_paragraphs(
+    query: str,
+    max_results: int = 8,
+    min_paragraph_len: int = 200,
+    timeout: float = 12.0,
+    user_agent: str = DEFAULT_UA,
+) -> list[tuple[str, str]]:
+    """
+    Search for pages matching `query`, extract paragraphs, and return a list of
+    (paragraph, source_url) tuples. Tries direct HTML parse first, then falls
+    back to trafilatura.fetch_url if needed.
+    """
     session = requests.Session()
-    session.headers.update({"User-Agent": user_agent, "Accept": "text/html,application/xhtml+xml"})
-    all_paragraphs: list[str] = []
+    session.headers.update({
+        "User-Agent": user_agent,
+        "Accept": "text/html,application/xhtml+xml",
+    })
+
+    results: list[tuple[str, str]] = []
 
     for url, _title in _search_urls(query, max_results):
         try:
             resp = session.get(url, timeout=timeout)
-            if "text/html" not in (resp.headers.get("Content-Type", "") or ""):
-                continue
+            content_type = resp.headers.get("Content-Type", "") or ""
+            paras = []
 
-            paras = _extract_paragraphs_from_html(resp.text, min_paragraph_len)
+            # Primary path: parse HTML we fetched
+            if "text/html" in content_type and resp.text:
+                paras = _extract_paragraphs_from_html(resp.text, min_paragraph_len) or []
+
+            # Fallback: let trafilatura handle fetching/decoding
             if not paras:
-                # Let trafilatura handle fetching/encoding itself as a fallback
                 downloaded = trafilatura.fetch_url(url)
                 if downloaded:
-                    paras = _extract_paragraphs_from_html(downloaded, min_paragraph_len)
+                    paras = _extract_paragraphs_from_html(downloaded, min_paragraph_len) or []
 
-            all_paragraphs.extend(paras)
+            # Append as (paragraph, url)
+            if paras:
+                results.extend((para, url) for para in paras)
+
         except (RequestException, Timeout):
             continue
 
-    return all_paragraphs
+    return results
+
 
 def gather_paragraphs_with_sources(query: str,
                                    max_results: int = 8,
@@ -124,3 +142,5 @@ if __name__ == "__main__":
     paragraphs = merged_search("What tech products were announced at the most recent Apple event?")
     for p in paragraphs:
         print(p)
+        print("---")
+        print(len(p))
