@@ -1,3 +1,11 @@
+elevenlabs
+python-dotenv
+playsound 
+pydub
+ffmpeg-python
+openai
+sounddevice
+numpy
 anyio==4.11.0
 babel==2.17.0
 beautifulsoup4==4.13.5
