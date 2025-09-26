@@ -81,9 +81,9 @@ def gather_paragraphs_with_sources(query: str,
 
     return results
 
-rich = gather_paragraphs_with_sources("2024 Presidential election US", max_results=6)
+rich = gather_paragraphs_with_sources("Apple recent event product announcements 2025", max_results=6)
 for item in rich:
     print(item["title"], item["url"])
-    for p in item["paragraphs"][:2]:
+    for p in item["paragraphs"]:
         print()
         print("-", p)
