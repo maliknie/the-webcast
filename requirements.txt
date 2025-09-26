@@ -1,0 +1,8 @@
+elevenlabs
+python-dotenv
+playsound 
+pydub
+ffmpeg-python
+openai
+sounddevice
+numpy
