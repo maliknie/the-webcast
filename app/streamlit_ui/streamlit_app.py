@@ -101,7 +101,11 @@ class ChatUI:
 
         # Sidebar to display MP3 files from the folder
         with st.sidebar:
-            mp3_folder = "mp3"  # Define your MP3 folder
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            # Define the MP3 folder relative to this script
+            mp3_folder = os.path.join(BASE_DIR, "mp3")
+            if not os.path.exists(mp3_folder):
+                os.makedirs(mp3_folder)
             mp3_files = [f for f in os.listdir(mp3_folder) if f.endswith(".mp3")]
             
             if mp3_files:

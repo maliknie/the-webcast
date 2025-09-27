@@ -3,7 +3,6 @@ from transformers import AutoTokenizer
 import openai
 
 
-HUGGING_FACE_TOKEN=""
 
 # Initialize Apertus client
 client = openai.OpenAI(
@@ -12,7 +11,7 @@ client = openai.OpenAI(
 )
 
 # Initialize tokenizer for logit bias
-tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=HUGGING_FACE_TOKEN)
+tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=os.getenv("HUGGING_FACE_TOKEN"))
 yes_token_id = tokenizer.encode("yes")[0]
 no_token_id = tokenizer.encode("no")[0]
 

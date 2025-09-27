@@ -209,3 +209,5 @@ __marimo__/
 .dev
 .gradio
 apertus-format
+
+.streamlit

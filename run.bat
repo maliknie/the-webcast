@@ -1,0 +1,1 @@
+docker run --rm --name webcast-container --env-file .env -p 8501:8501 -v %cd%:/app webcast
