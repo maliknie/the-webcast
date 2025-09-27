@@ -1,0 +1,8 @@
+[theme]
+primaryColor = "#00bcd4"  # Soft Teal/Cyan for accents
+backgroundColor = "#121212"  # Dark Background (Blackish Gray)
+secondaryBackgroundColor = "#1e1e1e"  # Darker Gray for containers
+textColor = "#e0e0e0"  # Light Gray for text (less harsh than white)
+font = "sans serif"  # Modern sans-serif font
+
+
