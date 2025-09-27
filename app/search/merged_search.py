@@ -26,16 +26,15 @@ Generate a highly effective search query for the following user prompt. The quer
 3. Use terms that are likely to appear in authoritative sources
 4. Focus on factual, verifiable information
 5. Include relevant dates, names, or specific terms when applicable
-6. For "latest" or "recent" queries, include current year (2024/2025) and official terms
+6. For "latest" or "recent" queries, include current year (2025) and official terms
 7. Use industry-standard terminology and official names
 8. Be optimized for finding reliable, factual content from official sources
 9. For Apple/iPhone queries, prioritize official Apple announcements and tech news
 
 Examples of good queries:
-- "iPhone 15 Pro 2024 specifications features" (for latest iPhone info)
-- "Apple iPhone 2024 release date" (for recent releases)
-- "Tesla Model 3 2024 price range" (instead of "Tesla latest news")
-- "OpenAI GPT-4 capabilities performance" (instead of "AI latest developments")
+- "iPhone 17 Pro 2025 specifications features" (for latest iPhone info)
+- "Apple iPhone 2025 release date" (for recent releases)
+- "OpenAI GPT-5 capabilities performance" (instead of "AI latest developments")
 
 User prompt: 
 """
