@@ -1,6 +1,6 @@
 elevenlabs
 python-dotenv
-playsound
+playsound3
 pydub
 ffmpeg-python
 openai
