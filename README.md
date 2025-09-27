@@ -28,6 +28,11 @@ This project adds a **web search feature** and **audio playback for answers** to
   </table>
 </p>
 
+<td align="center">
+    <b>Apertus</b><br>
+    <img src="images/apertus_audio.png" alt="Apertus Audio Output" width="800">
+</td>
+
 ## Prerequisites
 
 - Docker installed on your machine ([Docker installation guide](https://docs.docker.com/get-docker/)).  
