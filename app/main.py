@@ -11,10 +11,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import all pipeline components
-from app.search_trigger import needs_live_data_openai  # pyright: ignore[reportMissingImports]
-from merged_search import merged_search
-from webcast_engine_openai import get_llm_summary
-from text_to_speech import stream_text_to_speech
+from search.search_trigger import needs_live_data_openai  # pyright: ignore[reportMissingImports]
+from search.merged_search import merged_search
+from search.webcast_engine_openai import get_llm_summary
+from speach.text_to_speech import stream_text_to_speech
 
 
 def webcast_pipeline(user_prompt: str, enable_voice: bool = True) -> dict:
@@ -45,7 +45,7 @@ def webcast_pipeline(user_prompt: str, enable_voice: bool = True) -> dict:
             if paragraphs:
                 # Take the first paragraph as context (as per README)
                 context = paragraphs[0]
-                print(f"[WebCast] Retrieved context: {context[:100]}...")
+                print(f"[WebCast] Retrieved context: {context}...")
             else:
                 print("[WebCast] No paragraphs found from search")
         except Exception as e:

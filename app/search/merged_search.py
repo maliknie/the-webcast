@@ -11,7 +11,7 @@ load_dotenv()
 
 client = InferenceClient(
     provider="publicai",
-    api_key=os.getenv("HF_TOKEN"),
+    api_key=os.getenv("HG_API_KEY"),
 )
 
 prompt_template = """
