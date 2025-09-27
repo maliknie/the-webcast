@@ -3,8 +3,6 @@ python-dotenv
 playsound3
 pydub
 ffmpeg
-ffprobe
-ffmpeg-python
 openai
 sounddevice
 streamlit

@@ -4,6 +4,8 @@ FROM python:3.10-slim
 # Set working directory
 WORKDIR /container-app
 
+RUN apt-get update && apt-get install -y ffmpeg
+
 # Copy dependency files
 COPY ./app/requirements.txt ./
 
