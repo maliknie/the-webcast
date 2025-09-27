@@ -2,10 +2,10 @@
 FROM python:3.10-slim
 
 # Set working directory
-WORKDIR /app
+WORKDIR /container-app
 
 # Copy dependency files
-COPY requirements.txt ./
+COPY ./app/requirements.txt ./
 
 # Install uv and dependencies
 RUN pip install --no-cache-dir uv \
