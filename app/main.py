@@ -43,13 +43,16 @@ def webcast_pipeline(user_prompt: str, enable_voice: bool = True) -> dict:
         try:
             paragraphs = merged_search(user_prompt)
             if paragraphs:
-                # Take the first paragraph as context (as per README)
-                context = paragraphs[0]
-                print(f"[WebCast] Retrieved context: {context}...")
+                # Combine the best paragraphs for richer context
+                context = " ".join(paragraphs[:2])  # Use top 2 paragraphs for better context
+                print(f"[WebCast] Retrieved context: {context[:100]}...")
             else:
-                print("[WebCast] No paragraphs found from search")
+                print("[WebCast] No relevant paragraphs found from search")
         except Exception as e:
             print(f"[WebCast] Error during search: {e}")
+            # If it's a signal threading error, provide a more helpful message
+            if "signal only works in main thread" in str(e) or "signal" in str(e).lower():
+                print("[WebCast] Threading issue detected - continuing without live data")
             context = None
     else:
         print("[WebCast] Step 2: Skipping search - using existing knowledge")

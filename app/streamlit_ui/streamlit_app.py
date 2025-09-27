@@ -1,40 +1,85 @@
 import streamlit as st
 import time
 import os
-import uuid  
+import uuid
+import sys
+
+# Add the parent directory to the path to import from app modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import the main pipeline and text-to-speech functions
+from main import webcast_pipeline
+from speach.text_to_speech import stream_text_to_speech, text_to_mp3_file
 
 
-## --- IGNORE: These are default functions for testing ---##
+## --- REAL PIPELINE FUNCTIONS ---##
 
-# Default function that simulates assistant response, for testing
+# Real function that processes user prompts through the webcast pipeline
 def handle_send(prompt):
-    time.sleep(2)  
-    return f"This is a delayed response to: {prompt}"
+    try:
+        # Run the webcast pipeline without voice generation first
+        result = webcast_pipeline(prompt, enable_voice=False)
+        
+        if "error" in result:
+            return f"Error: {result['error']}"
+        
+        # Store additional pipeline information in session state
+        st.session_state.pipeline_info = {
+            "search_performed": result.get("search_performed", False),
+            "context_used": result.get("context_used", False),
+            "text_response": result["text_response"]
+        }
+        
+        # Return the text response
+        return result["text_response"]
+    except Exception as e:
+        return f"Error processing request: {str(e)}"
 
-# Default function that simulates converting text to speech and generating an MP3 path, for testing
-def on_voice(text= ""):
-    time.sleep(2) 
-    mp3_folder = "mp3"  # Folder where MP3 files are stored
-
-    if not os.path.exists(mp3_folder):
-        os.makedirs(mp3_folder)
-
-    # Create a random file name for each MP3 file
-    mp3_filename = f"response_{uuid.uuid4().hex}.mp3"
-    mp3_path = os.path.join(mp3_folder, mp3_filename)
-
-    # Create a mock MP3 file
-    with open(mp3_path, "w") as f:
-        f.write("This is a mock MP3 file. Replace with actual audio generation logic.")
-
-    if os.path.exists(mp3_path):
-        st.write(f"MP3 file generated successfully. Check your sidebar to play it.")
-        return mp3_path
-    else:
-        st.write(f"Failed to save MP3 file.")
+# Real function that converts text to speech using stream_text_to_speech
+def on_voice(text=""):
+    print(f"[DEBUG] on_voice called with text: {text[:100] if text else 'None'}...")
+    if not text:
+        st.error("No text provided for voice conversion.")
+        return None
+    
+    try:
+        # Create mp3 folder if it doesn't exist - use absolute path
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        mp3_folder = os.path.join(current_dir, "..", "mp3")
+        mp3_folder = os.path.abspath(mp3_folder)
+        
+        if not os.path.exists(mp3_folder):
+            os.makedirs(mp3_folder)
+            print(f"[DEBUG] Created mp3 folder: {mp3_folder}")
+        
+        print(f"[DEBUG] Using mp3 folder: {mp3_folder}")
+        
+        # Generate audio file using text_to_mp3_file
+        mp3_path = text_to_mp3_file(
+            text=text,
+            out_dir=mp3_folder,
+            filename_prefix="webcast_response"
+        )
+        
+        print(f"[DEBUG] Generated mp3_path: {mp3_path}")
+        
+        if mp3_path and os.path.exists(mp3_path):
+            file_size = os.path.getsize(mp3_path)
+            print(f"[DEBUG] File exists, size: {file_size} bytes")
+            st.success(f"🎵 Audio generated successfully! ({file_size} bytes)")
+            return mp3_path
+        else:
+            st.error("Failed to generate audio file.")
+            print(f"[DEBUG] File not found at: {mp3_path}")
+            return None
+            
+    except Exception as e:
+        error_msg = f"Error generating audio: {str(e)}"
+        print(f"[DEBUG] Exception: {error_msg}")
+        st.error(error_msg)
         return None
 
-## --------------- END IGNORE ---------------##
+## --------------- END REAL FUNCTIONS ---------------##
 
 class ChatUI:
     def __init__(self, on_send=handle_send, on_voice=on_voice):
@@ -51,8 +96,8 @@ class ChatUI:
             st.session_state.mp3_url = None
         if "is_processing" not in st.session_state:
             st.session_state.is_processing = False
-        if "is_button_clicked" not in st.session_state:
-            st.session_state.is_button_clicked = False
+        if "pipeline_info" not in st.session_state:
+            st.session_state.pipeline_info = None
 
     def render(self):
         st.title("WebCast")
@@ -62,7 +107,7 @@ class ChatUI:
             st.session_state.assistant_response = None
             st.session_state.mp3_url = None
             st.session_state.is_processing = False
-            st.session_state.is_button_clicked = False
+            st.session_state.pipeline_info = None
 
         # Display chat history
         for message in st.session_state.messages:
@@ -75,51 +120,80 @@ class ChatUI:
                 st.markdown(f"User: {prompt}")
             st.session_state.messages.append({"role": "user", "content": f"User: {prompt}"})
 
-            with st.spinner('Assistant is typing...'):
+            with st.spinner('Apertus is thinking...'):
                 assistant_response = self.on_send(prompt)
             st.session_state.assistant_response = assistant_response
 
             with st.chat_message("assistant"):
-                st.markdown(f'<p style="font-family: Arial, sans-serif; color: #e0e0e0; font-size: 16px;">Assistant: {assistant_response}</p>', unsafe_allow_html=True)
+                st.markdown(f'<p style="font-family: Arial, sans-serif; color: #e0e0e0; font-size: 16px;">Apertus: {assistant_response}</p>', unsafe_allow_html=True)
+                
+                # Display pipeline information if available
+                if st.session_state.pipeline_info:
+                    with st.expander("🔍 Pipeline Information", expanded=False):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.session_state.pipeline_info["search_performed"]:
+                                st.success("✓ Web search performed")
+                            else:
+                                st.info("ℹ️ No web search needed")
+                        with col2:
+                            if st.session_state.pipeline_info["context_used"]:
+                                st.success("✓ Live data used")
+                            else:
+                                st.info("ℹ️ Using existing knowledge")
+                
+                # Display audio player if audio is available
+                if st.session_state.mp3_url and os.path.exists(st.session_state.mp3_url):
+                    st.audio(st.session_state.mp3_url, format="audio/mp3")
+                    st.success(f"🎵 Playing: {os.path.basename(st.session_state.mp3_url)}")
 
-            st.session_state.messages.append({"role": "assistant", "content": f"Assistant: {assistant_response}"})
+            st.session_state.messages.append({"role": "assistant", "content": f"Apertus: {assistant_response}"})
 
-            # Check if button clicked to convert speech
-            if not st.session_state.is_button_clicked:
-                button_clicked = st.button("Convert to Speech", on_click=on_voice)
-                if button_clicked:
-                    st.session_state.is_button_clicked = True
-                    st.session_state.is_processing = True
-                    time.sleep(2)
+            # Convert to speech button - always show it
+            button_clicked = st.button("🎵 Convert to Speech")
+            if button_clicked:
+                print(f"[DEBUG] Button clicked, assistant_response: {assistant_response[:100] if assistant_response else 'None'}...")
+                st.write("🔊 **Button clicked, assistant...**")  # Show in UI instead of just terminal
+                st.session_state.is_processing = True
+                
+                with st.spinner("🎵 Generating audio..."):
                     mp3_path = self.on_voice(assistant_response)
                     if mp3_path:
                         st.session_state.mp3_url = mp3_path
-                    st.session_state.is_processing = False
+                        st.success("🎵 Audio generated! Scroll up to play it.")
+                        st.rerun()  # Refresh to show the audio player
+                
+                st.session_state.is_processing = False
 
         if st.session_state.is_processing:
             st.spinner("Processing...")
 
         # Sidebar to display MP3 files from the folder
         with st.sidebar:
-            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            st.header("🎵 Audio Library")
+            
             # Define the MP3 folder relative to this script
-            mp3_folder = os.path.join(BASE_DIR, "mp3")
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            mp3_folder = os.path.join(current_dir, "..", "mp3")
+            mp3_folder = os.path.abspath(mp3_folder)
+            
             if not os.path.exists(mp3_folder):
                 os.makedirs(mp3_folder)
+            
             mp3_files = [f for f in os.listdir(mp3_folder) if f.endswith(".mp3")]
             
             if mp3_files:
-                # Display all available MP3 files in the folder
-                selected_mp3 = st.selectbox("Select an MP3 file to play:", mp3_files)
-                if selected_mp3:
-                    # Generate the full path of the selected MP3 file
-                    st.session_state.mp3_url = os.path.join(mp3_folder, selected_mp3)
-
-            # Audio player
-            if st.session_state.mp3_url:
-                st.audio(st.session_state.mp3_url, format="audio/mp3")
+                # Sort files by modification time (newest first)
+                mp3_files.sort(key=lambda x: os.path.getmtime(os.path.join(mp3_folder, x)), reverse=True)
+                
+                st.subheader("📁 Recent Audio Files")
+                for i, file in enumerate(mp3_files[:5]):  # Show last 5 files
+                    file_path = os.path.join(mp3_folder, file)
+                    if st.button(f"🎵 {file}", key=f"play_{i}"):
+                        st.session_state.mp3_url = file_path
+                        st.rerun()
             else:
-                st.write("No audio available. Please convert a message to speech.")
+                st.info("No audio files yet. Generate speech from a message first.")
 
 if __name__ == "__main__":
     chat_ui = ChatUI()  

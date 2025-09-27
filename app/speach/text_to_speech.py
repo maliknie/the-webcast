@@ -191,6 +191,21 @@ def _convert_chunk_to_mp3_bytes(text_chunk: str, voice_id: str = "pNInz6obpgDQGc
                 raise RuntimeError(f"Failed to convert chunk to audio after {retries+1} attempts: {e}")
             print(f"Warning: retrying chunk conversion ({attempt}/{retries}) due to error: {e}")
 
+def generate_meaningful_filename(text: str, prefix: str = "webcast") -> str:
+    """Generate a meaningful filename based on text content."""
+    import re
+    from datetime import datetime
+    
+    # Clean the text for filename
+    clean_text = re.sub(r'[^\w\s-]', '', text.lower())
+    clean_text = re.sub(r'[-\s]+', '_', clean_text)
+    
+    # Take first 30 characters and add timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename_part = clean_text[:30] if clean_text else "response"
+    
+    return f"{prefix}_{filename_part}_{timestamp}"
+
 def text_to_mp3_file(text: str, out_dir: str, voice_id: str = "pNInz6obpgDQGcFmaJgB", 
                      filename_prefix: Optional[str] = None, model_id: str = DEFAULT_MODEL, 
                      chunk_size: int = DEFAULT_CHUNK_SIZE, bitrate: str = "128k") -> str:
@@ -206,7 +221,10 @@ def text_to_mp3_file(text: str, out_dir: str, voice_id: str = "pNInz6obpgDQGcFma
         os.makedirs(out_dir, exist_ok=True)
         if not filename_prefix:
             filename_prefix = "tts"
-        out_file = os.path.join(out_dir, f"{filename_prefix}_{uuid.uuid4().hex}.mp3")
+        
+        # Generate meaningful filename
+        meaningful_name = generate_meaningful_filename(text, filename_prefix)
+        out_file = os.path.join(out_dir, f"{meaningful_name}.mp3")
         
         print(f"Will save audio to: {out_file}")
         
