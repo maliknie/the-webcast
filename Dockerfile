@@ -9,7 +9,6 @@ COPY ./app/requirements.txt ./
 
 # Install uv and dependencies
 RUN pip install --no-cache-dir uv \
-    && pip install --no-cache-dir playsound \
     && uv pip install --no-cache-dir -r requirements.txt --system
 
 # Copy the rest of the application code

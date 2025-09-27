@@ -1,21 +1,37 @@
 # The Webcast - Swiss {ai} Weeks Lausanne
 
-# APERTUS Web Search Integration With Audio Prompting & Playback
+# APERTUS Web Search Integration With Audio Playback
 
 This project adds a **web search feature** and **audio playback for answers** to the existing APERTUS model. It enables the model to fetch live search results and play back responses in audio format. The application is fully containerized with Docker for easy deployment.
 
 ## Features
 
 - Integrates web search capabilities into APERTUS.
-- Audio input prompt capabilities
 - Plays model answers as audio output.
 - Fully containerized for consistent environment across machines.  
 - Configurable via `.env` file for API keys.
 
+## Model Comparison
+
+<p align="center">
+  <table>
+    <tr>
+    <td align="center">
+        <b>Apertus + Web Search</b><br>
+        <img src="images/apertus_web.jpg" alt="Apertus with Web Search" width="800">
+      </td>
+      <td align="center">
+        <b>Apertus</b><br>
+        <img src="images/apertus.jpg" alt="Apertus LLM" width="800">
+      </td>
+    </tr>
+  </table>
+</p>
+
 ## Prerequisites
 
 - Docker installed on your machine ([Docker installation guide](https://docs.docker.com/get-docker/)).  
-- API keys : Swiss AI Platform / HuggingFace / ElevenLabs / OpenAI.  
+- API keys : Swiss AI Platform / HuggingFace / ElevenLabs.  
 
 
 ## Setup
@@ -49,7 +65,6 @@ copy .env.example .env
 ```env
 SWISS_AI_PLATFORM_API_KEY=""
 HG_API_KEY=""
-OPENAI_API_KEY=""
 ELEVENLABS_API_KEY=""
 ```
 

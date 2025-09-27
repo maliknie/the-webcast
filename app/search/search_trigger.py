@@ -3,13 +3,11 @@ from transformers import AutoTokenizer
 import openai
 
 
-HUGGING_FACE_TOKEN=os.getenv("HG_API_KEY")
-
 # Client will be initialized when needed
 client = None
 
 # Initialize tokenizer for logit bias
-tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=HUGGING_FACE_TOKEN)
+tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=os.getenv("HF_API_KEY"))
 yes_token_id = tokenizer.encode("yes")[0]
 no_token_id = tokenizer.encode("no")[0]
 
