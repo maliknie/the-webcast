@@ -66,10 +66,8 @@ def on_voice(text=""):
         if mp3_path and os.path.exists(mp3_path):
             file_size = os.path.getsize(mp3_path)
             print(f"[DEBUG] File exists, size: {file_size} bytes")
-            st.success(f"🎵 Audio generated successfully! ({file_size} bytes)")
             return mp3_path
         else:
-            st.error("Failed to generate audio file.")
             print(f"[DEBUG] File not found at: {mp3_path}")
             return None
             
@@ -92,27 +90,55 @@ class ChatUI:
             st.session_state.messages = []
         if "assistant_response" not in st.session_state:
             st.session_state.assistant_response = None
-        if "mp3_url" not in st.session_state:
-            st.session_state.mp3_url = None
+        if "current_audio" not in st.session_state:
+            st.session_state.current_audio = None
         if "is_processing" not in st.session_state:
             st.session_state.is_processing = False
         if "pipeline_info" not in st.session_state:
             st.session_state.pipeline_info = None
+        if "audio_generation_trigger" not in st.session_state:
+            st.session_state.audio_generation_trigger = False
+        if "last_message_index" not in st.session_state:
+            st.session_state.last_message_index = -1
 
     def render(self):
         st.title("WebCast")
 
-        if st.button("Reset Messages"):
-            st.session_state.messages = []
-            st.session_state.assistant_response = None
-            st.session_state.mp3_url = None
-            st.session_state.is_processing = False
-            st.session_state.pipeline_info = None
+        # Create columns for reset button and audio player
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            if st.button("Reset Messages"):
+                st.session_state.messages = []
+                st.session_state.assistant_response = None
+                st.session_state.current_audio = None
+                st.session_state.is_processing = False
+                st.session_state.pipeline_info = None
+                st.session_state.audio_generation_trigger = False
+                st.session_state.last_message_index = -1
+
+        # Persistent audio player at the top
+        with col2:
+            if st.session_state.current_audio and os.path.exists(st.session_state.current_audio):
+                st.audio(st.session_state.current_audio, format="audio/mp3")
+                st.caption(f"🎵 {os.path.basename(st.session_state.current_audio)}")
 
         # Display chat history
-        for message in st.session_state.messages:
+        for i, message in enumerate(st.session_state.messages):
             with st.chat_message(message["role"]):
                 st.markdown(f'<p style="font-family: Arial, sans-serif; color: #e0e0e0; font-size: 16px;">{message["content"]}</p>', unsafe_allow_html=True)
+                
+                # Add Convert to Speech button for assistant messages
+                if message["role"] == "assistant" and message["content"].startswith("Apertus:"):
+                    # Extract the actual response text
+                    response_text = message["content"][9:].strip()  # Remove "Apertus: " prefix
+                    if st.button("🎵 Convert to Speech", key=f"voice_{i}"):
+                        with st.spinner("🎵 Generating audio..."):
+                            mp3_path = self.on_voice(response_text)
+                            if mp3_path:
+                                st.session_state.current_audio = mp3_path
+                                st.success("✅ Audio generated successfully!")
+                                st.rerun()
 
         # Accept user input
         if prompt := st.chat_input("Type something..."):
@@ -123,6 +149,9 @@ class ChatUI:
             with st.spinner('Apertus is thinking...'):
                 assistant_response = self.on_send(prompt)
             st.session_state.assistant_response = assistant_response
+            
+            # Store the index of this message for reference
+            st.session_state.last_message_index = len(st.session_state.messages)
 
             with st.chat_message("assistant"):
                 st.markdown(f'<p style="font-family: Arial, sans-serif; color: #e0e0e0; font-size: 16px;">Apertus: {assistant_response}</p>', unsafe_allow_html=True)
@@ -142,31 +171,16 @@ class ChatUI:
                             else:
                                 st.info("ℹ️ Using existing knowledge")
                 
-                # Display audio player if audio is available
-                if st.session_state.mp3_url and os.path.exists(st.session_state.mp3_url):
-                    st.audio(st.session_state.mp3_url, format="audio/mp3")
-                    st.success(f"🎵 Playing: {os.path.basename(st.session_state.mp3_url)}")
+                # Convert to speech button for the new response
+                if st.button("🎵 Convert to Speech", key=f"voice_new_{st.session_state.last_message_index}"):
+                    with st.spinner("🎵 Generating audio..."):
+                        mp3_path = self.on_voice(assistant_response)
+                        if mp3_path:
+                            st.session_state.current_audio = mp3_path
+                            st.success("✅ Audio generated successfully!")
+                            st.rerun()
 
             st.session_state.messages.append({"role": "assistant", "content": f"Apertus: {assistant_response}"})
-
-            # Convert to speech button - always show it
-            button_clicked = st.button("🎵 Convert to Speech")
-            if button_clicked:
-                print(f"[DEBUG] Button clicked, assistant_response: {assistant_response[:100] if assistant_response else 'None'}...")
-                st.write("🔊 **Button clicked, assistant...**")  # Show in UI instead of just terminal
-                st.session_state.is_processing = True
-                
-                with st.spinner("🎵 Generating audio..."):
-                    mp3_path = self.on_voice(assistant_response)
-                    if mp3_path:
-                        st.session_state.mp3_url = mp3_path
-                        st.success("🎵 Audio generated! Scroll up to play it.")
-                        st.rerun()  # Refresh to show the audio player
-                
-                st.session_state.is_processing = False
-
-        if st.session_state.is_processing:
-            st.spinner("Processing...")
 
         # Sidebar to display MP3 files from the folder
         with st.sidebar:
@@ -187,11 +201,27 @@ class ChatUI:
                 mp3_files.sort(key=lambda x: os.path.getmtime(os.path.join(mp3_folder, x)), reverse=True)
                 
                 st.subheader("📁 Recent Audio Files")
-                for i, file in enumerate(mp3_files[:5]):  # Show last 5 files
+                for i, file in enumerate(mp3_files[:10]):  # Show last 10 files
                     file_path = os.path.join(mp3_folder, file)
-                    if st.button(f"🎵 {file}", key=f"play_{i}"):
-                        st.session_state.mp3_url = file_path
+                    # Display file name with timestamp
+                    file_time = os.path.getmtime(file_path)
+                    from datetime import datetime
+                    timestamp = datetime.fromtimestamp(file_time).strftime("%Y-%m-%d %H:%M")
+                    
+                    if st.button(f"🎵 {file[:30]}... ({timestamp})", key=f"play_sidebar_{i}"):
+                        st.session_state.current_audio = file_path
                         st.rerun()
+                
+                # Add clear all button
+                if st.button("🗑️ Clear All Audio Files"):
+                    for file in mp3_files:
+                        try:
+                            os.remove(os.path.join(mp3_folder, file))
+                        except:
+                            pass
+                    st.success("All audio files cleared!")
+                    st.session_state.current_audio = None
+                    st.rerun()
             else:
                 st.info("No audio files yet. Generate speech from a message first.")
 

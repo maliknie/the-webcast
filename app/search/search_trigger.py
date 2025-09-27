@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 import openai
 
 
-HUGGING_FACE_TOKEN=""
+HUGGING_FACE_TOKEN=os.getenv("HG_API_KEY")
 
 # Client will be initialized when needed
 client = None
