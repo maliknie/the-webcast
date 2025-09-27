@@ -80,7 +80,7 @@ def convert_audio_format(input_file: str, output_format: str = "mp3") -> str:
 
 def transcribe_audio(audio_file_path: str, language: Optional[str] = None) -> str:
     with open(audio_file_path, 'rb') as f:
-        params = {"model": "whisper-1", "file": f, "temperature": 0.0}
+        params = {"model": "whisper-1", "file": f, "temperature": 0.1}
         if language:
             params["language"] = language
         response = client.audio.transcriptions.create(**params)
