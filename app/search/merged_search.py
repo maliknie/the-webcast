@@ -26,12 +26,14 @@ Generate a highly effective search query for the following user prompt. The quer
 3. Use terms that are likely to appear in authoritative sources
 4. Focus on factual, verifiable information
 5. Include relevant dates, names, or specific terms when applicable
-6. Avoid vague terms like "latest", "recent", "new" unless absolutely necessary
+6. For "latest" or "recent" queries, include current year (2024/2025) and official terms
 7. Use industry-standard terminology and official names
-8. Be optimized for finding reliable, factual content
+8. Be optimized for finding reliable, factual content from official sources
+9. For Apple/iPhone queries, prioritize official Apple announcements and tech news
 
 Examples of good queries:
-- "iPhone 15 Pro specifications features" (instead of "latest iPhone features")
+- "iPhone 15 Pro 2024 specifications features" (for latest iPhone info)
+- "Apple iPhone 2024 release date" (for recent releases)
 - "Tesla Model 3 2024 price range" (instead of "Tesla latest news")
 - "OpenAI GPT-4 capabilities performance" (instead of "AI latest developments")
 
@@ -96,28 +98,29 @@ DEFAULT_UA = "Mozilla/5.0 (compatible; InfoHarvester/1.0)"
 # Domains to exclude from search results (opinion-based or unreliable sources)
 EXCLUDED_DOMAINS = {
     'reddit.com', 'www.reddit.com', 'old.reddit.com',
-    'quora.com', 'www.quora.com',
-    'answers.yahoo.com', 'answers.com',
-    'ask.com', 'www.ask.com',
-    'dev.to',
-    'facebook.com', 'twitter.com', 'x.com',
-    'instagram.com', 'tiktok.com',
-    'pinterest.com', 'tumblr.com',
-    'huffpost.com',
-    'dailymail.co.uk', 'nypost.com',
-    'thesun.co.uk', 'mirror.co.uk'
+    'ask.com', 'www.ask.com', 
+    'instagram.com', 'tiktok.com', 'tumblr.com',
+    'huffpost.com', 'support.apple.com', 'appleinsider.com',
 }
 
 # Preferred domains for authoritative content
 PREFERRED_DOMAINS = {
-    'reuters.com', 'ap.org', 'bbc.com', 'cnn.com',
+    'wikipedia.org', 'reuters.com', 'ap.org', 'bbc.com', 'cnn.com',
     'nytimes.com', 'washingtonpost.com', 'wsj.com',
     'bloomberg.com', 'forbes.com', 'techcrunch.com',
     'theverge.com', 'arstechnica.com', 'wired.com',
-    'apple.com', 'microsoft.com', 'google.com',
+    'google.com',
     'nasa.gov', 'nih.gov', 'cdc.gov', 'who.int',
     'nature.com', 'science.org', 'cell.com',
-    'ieee.org', 'acm.org', 'springer.com'
+    'ieee.org', 'acm.org', 'springer.com', 
+    'google.com',
+    # Apple and tech-specific authoritative sources
+    'apple.com', 'www.apple.com',
+    'macrumors.com', '9to5mac.com', 
+    'engadget.com', 'mashable.com', 'cnet.com',
+    'gsmarena.com', 'phonearena.com', 'pocket-lint.com',
+    'digitaltrends.com', 'slashgear.com', 'bgr.com',
+    'imore.com', 'cultofmac.com', 'macworld.com'
 }
 
 def _is_excluded_domain(url: str) -> bool:
@@ -271,9 +274,10 @@ def _semantic_relevance_score(content: str, query: str) -> float:
         if query_lower in content_lower:
             phrase_boost = 0.2  # 20% boost for exact phrase match
         
-        # Boost score for important terms
+        # Boost score for important terms (prioritize recent and official info)
         important_terms = ['official', 'confirmed', 'announced', 'released', 'specifications', 
-                          'features', 'performance', 'review', 'analysis', 'report']
+                          'features', 'performance', 'review', 'analysis', 'report', '2024', '2025',
+                          'launch', 'unveiled', 'introduced', 'debut', 'premiere']
         term_boost = 0.0
         for term in important_terms:
             if term in content_lower:
@@ -538,7 +542,7 @@ def _is_relevant_content(content: str, query: str) -> bool:
             phrase_bonus = 5
     
     # Method 5: Domain-specific relevance (check for authoritative indicators)
-    authority_indicators = ['official', 'announced', 'released', 'confirmed', 'specifications', 'features', 'performance', 'review', 'analysis', 'report']
+    authority_indicators = ['official', 'announced', 'released', 'confirmed', 'specifications', 'features', 'performance', 'review', 'analysis', 'report', '2024', '2025', 'launch', 'unveiled', 'introduced']
     authority_score = sum(1 for indicator in authority_indicators if indicator in content_lower)
     
     # Combined scoring with cosine similarity
@@ -852,7 +856,9 @@ def _generate_alternative_queries(user_prompt: str) -> list[str]:
     
     # Add specific domain queries
     if any(word in user_prompt.lower() for word in ['iphone', 'apple', 'ios']):
-        alternatives.append('iPhone specifications features 2024')
+        alternatives.append('iPhone 15 Pro 2024 specifications features')
+        alternatives.append('Apple iPhone latest release 2024')
+        alternatives.append('iPhone 15 Pro Max official announcement')
     elif any(word in user_prompt.lower() for word in ['tesla', 'electric', 'car']):
         alternatives.append('Tesla electric vehicle specifications')
     elif any(word in user_prompt.lower() for word in ['ai', 'artificial', 'intelligence']):
@@ -881,8 +887,8 @@ def _rank_paragraphs(paragraphs: list[str], query: str, source_urls: list[str] =
         term_matches = sum(1 for term in query_terms if term in para.lower())
         score += term_matches * 0.5
         
-        # Quality indicators
-        quality_indicators = ['official', 'confirmed', 'announced', 'released', 'specifications', 'features', 'performance']
+        # Quality indicators (prioritize recent and official info)
+        quality_indicators = ['official', 'confirmed', 'announced', 'released', 'specifications', 'features', 'performance', '2024', '2025', 'launch', 'unveiled', 'introduced']
         quality_score = sum(1 for indicator in quality_indicators if indicator in para.lower())
         score += quality_score * 0.3
         
