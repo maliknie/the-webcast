@@ -7,7 +7,6 @@ from openai import OpenAI
 # It's best practice to load secrets like API keys from environment variables.
 # This keeps them out of your source code.
 API_KEY = os.getenv("SWISS_AI_PLATFORM_API_KEY")
-print(f"{API_KEY=}")
 API_URL = "https://api.swiss-ai-platform.ch/v1/chat/completions" # As per the guide
 
 
@@ -103,7 +102,7 @@ def get_llm_summary(user_query: str, context: str | None) -> str:
             {"role": "user", "content": final_prompt}
         ],
         stream=True,
-        max_tokens=300,
+        max_tokens=400,
         temperature=0.1,
     )
 

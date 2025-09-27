@@ -2,11 +2,13 @@ import os
 import uuid
 import re
 import tempfile
+import platform
+import subprocess
+import sys
 from typing import List, Optional
 from dotenv import load_dotenv
 from pydub import AudioSegment
 from elevenlabs.client import ElevenLabs
-from pydub.playback import play as pydub_play
 from io import BytesIO
 import audioop
 
@@ -14,10 +16,8 @@ load_dotenv()
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
-if not ELEVENLABS_API_KEY:
-    raise ValueError("ELEVENLABS_API_KEY not found in environment variables!")
-# Initialize client
-client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+# Client will be initialized when needed
+client = None
 
 # Configuration
 DEFAULT_MODELS = {
@@ -40,6 +40,79 @@ DEFAULT_OUTPUT_FORMAT = AUDIO_FORMATS["balanced"]
 
 # Default chunk size for API limits
 DEFAULT_CHUNK_SIZE = 7000
+
+def _play_audio_cross_platform(audio_bytes: bytes, format: str = "mp3") -> bool:
+    """
+    Cross-platform audio playback that works on macOS, Windows, and Linux.
+    Takes raw audio bytes and plays them directly without FFmpeg dependency.
+    Returns True if successful, False otherwise.
+    """
+    try:
+        system = platform.system().lower()
+        
+        if system == "darwin":  # macOS
+            # Use afplay (built-in macOS audio player)
+            with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp_file:
+                tmp_file.write(audio_bytes)
+                tmp_file.flush()
+                result = subprocess.run(["afplay", tmp_file.name], 
+                                      capture_output=True, timeout=30)
+                os.unlink(tmp_file.name)
+                return result.returncode == 0
+                
+        elif system == "windows":  # Windows
+            # Use Windows Media Player (built-in)
+            with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp_file:
+                tmp_file.write(audio_bytes)
+                tmp_file.flush()
+                result = subprocess.run(["powershell", "-c", 
+                                       f"(New-Object Media.SoundPlayer '{tmp_file.name}').PlaySync();"], 
+                                      capture_output=True, timeout=30)
+                os.unlink(tmp_file.name)
+                return result.returncode == 0
+                
+        elif system == "linux":  # Linux
+            # Try multiple audio players in order of preference
+            players = ["paplay", "aplay", "play", "mpv", "vlc"]
+            for player in players:
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False) as tmp_file:
+                        tmp_file.write(audio_bytes)
+                        tmp_file.flush()
+                        result = subprocess.run([player, tmp_file.name], 
+                                              capture_output=True, timeout=30)
+                        os.unlink(tmp_file.name)
+                        if result.returncode == 0:
+                            return True
+                except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                    continue
+            return False
+            
+        else:
+            print(f"Unsupported platform: {system}")
+            return False
+            
+    except Exception as e:
+        print(f"Error playing audio: {e}")
+        return False
+
+def _check_ffmpeg_available() -> bool:
+    """Check if FFmpeg is available on the system."""
+    try:
+        result = subprocess.run(["ffmpeg", "-version"], 
+                              capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
+
+def _get_client():
+    """Initialize and return the ElevenLabs client."""
+    global client
+    if client is None:
+        if not ELEVENLABS_API_KEY:
+            raise ValueError("ELEVENLABS_API_KEY not found in environment variables!")
+        client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+    return client
 
 def chunk_text_by_words(text: str, chunk_size: int) -> List[str]:
     """Fallback to word-based chunking for very long sentences"""
@@ -98,6 +171,7 @@ def _convert_chunk_to_mp3_bytes(text_chunk: str, voice_id: str = "pNInz6obpgDQGc
     """
     Convert a single chunk to audio bytes with error handling.
     """
+    client = _get_client()
     attempt = 0
     while attempt <= retries:
         try:
@@ -186,6 +260,7 @@ def stream_text_to_speech(text: str, voice_id: str = "pNInz6obpgDQGcFmaJgB", mod
     """
     Play long text in chunks sequentially, low latency streaming.
     Optionally save the combined audio to file.
+    Uses cross-platform audio playback that works on macOS, Windows, and Linux.
     """
     text = text.strip()
     if not text:
@@ -194,27 +269,47 @@ def stream_text_to_speech(text: str, voice_id: str = "pNInz6obpgDQGcFmaJgB", mod
     chunks = chunk_text(text, chunk_size)
     audio_segments = []
 
+    # Check if FFmpeg is available for better audio processing
+    ffmpeg_available = _check_ffmpeg_available()
+    if not ffmpeg_available:
+        print("Warning: FFmpeg not found. Using cross-platform audio playback.")
+        print("For better audio quality, consider installing FFmpeg.")
+
     for i, chunk in enumerate(chunks, 1):
         print(f"Playing chunk {i}/{len(chunks)}...")
         try:
             audio_bytes = _convert_chunk_to_mp3_bytes(chunk, voice_id, model_id=model_id)
-            audio_seg = AudioSegment.from_file(BytesIO(audio_bytes), format="mp3")
-            pydub_play(audio_seg)
-            audio_segments.append(audio_seg)
+            
+            # Use cross-platform audio playback directly with raw bytes
+            success = _play_audio_cross_platform(audio_bytes, format="mp3")
+            if not success:
+                print(f"Warning: Failed to play chunk {i} using cross-platform method")
+                # Save the chunk to a temporary file for manual playback
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
+                        tmp_file.write(audio_bytes)
+                        tmp_file.flush()
+                        print(f"Saved chunk {i} to {tmp_file.name} (manual playback required)")
+                except Exception as save_error:
+                    print(f"Error saving chunk {i}: {save_error}")
+            
+            # Store audio bytes for potential file saving
+            audio_segments.append(audio_bytes)
         except Exception as e:
-            print(f"Error playing chunk {i}: {e}")
+            print(f"Error processing chunk {i}: {e}")
 
     if save_to_file and audio_segments:
         if not out_file:
             out_file = os.path.join(tempfile.gettempdir(), f"stream_{uuid.uuid4().hex}.mp3")
         try:
-            combined_audio = audio_segments[0]
-            for seg in audio_segments[1:]:
-                combined_audio += seg
-            combined_audio.export(out_file, format="mp3")
+            # Combine all audio bytes into a single file
+            with open(out_file, "wb") as f:
+                for audio_bytes in audio_segments:
+                    f.write(audio_bytes)
+            print(f"Combined audio saved to: {out_file}")
             return out_file
         except Exception as e:
-            print(f"Error exporting combined audio: {e}")
+            print(f"Error saving combined audio: {e}")
             return None
     return None
 

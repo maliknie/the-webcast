@@ -3,15 +3,13 @@ from transformers import AutoTokenizer
 import openai
 
 
+HUGGING_FACE_TOKEN=""
 
-# Initialize Apertus client
-client = openai.OpenAI(
-    api_key=os.getenv("SWISS_AI_PLATFORM_API_KEY"),
-    base_url="https://api.swisscom.com/layer/swiss-ai-weeks/apertus-70b/v1"
-)
+# Client will be initialized when needed
+client = None
 
 # Initialize tokenizer for logit bias
-tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=os.getenv("HUGGING_FACE_TOKEN"))
+tokenizer = AutoTokenizer.from_pretrained("swiss-ai/Apertus-70B-2509", token=HUGGING_FACE_TOKEN)
 yes_token_id = tokenizer.encode("yes")[0]
 no_token_id = tokenizer.encode("no")[0]
 
@@ -21,6 +19,19 @@ logit_bias = {
 }
 
 def needs_live_data_openai(prompt: str) -> bool:
+    global client
+    
+    # Initialize client if not already done
+    if client is None:
+        api_key = os.getenv("SWISS_AI_PLATFORM_API_KEY")
+        if not api_key:
+            print("[DEBUG] SWISS_AI_PLATFORM_API_KEY not found, defaulting to True")
+            return True
+        client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.swisscom.com/layer/swiss-ai-weeks/apertus-70b/v1"
+        )
+    
     system_message = (
         "If you cannot answer to the user prompt -- whether it's a question or not -- with the informations that you have, reply with 'no'. "
         "If you can answer with your existing knowledge, reply with 'yes'. "
@@ -48,7 +59,7 @@ def needs_live_data_openai(prompt: str) -> bool:
         if first_word not in ["yes", "no"]:
             first_word = "yes" if "yes" in answer else "no"
 
-        return first_word == "yes"
+        return first_word == "no"
 
     except Exception as e:
         print(f"[DEBUG] Exception occurred: {e}")
